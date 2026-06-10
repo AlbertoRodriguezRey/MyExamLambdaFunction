@@ -99,7 +99,6 @@ public class Function
                 model = "gpt-4.1",
                 messages = new[]
                 {
-                    new { role = "system", content = "Eres un asistente experto en festivales y conciertos de música. Responde de forma concisa basándote en la información solicitada." },
                     new { role = "user", content = question }
                 }
             };
