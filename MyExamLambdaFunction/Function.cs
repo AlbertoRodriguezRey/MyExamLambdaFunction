@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Amazon;
+using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.Core;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
@@ -24,7 +25,36 @@ public class Function
 {
     private static readonly HttpClient httpClient = new HttpClient();
 
-    public async Task<ChatResponse> FunctionHandler(ChatRequest input, ILambdaContext context)
+    /// <summary>
+    /// Punto de entrada para API Gateway (integración proxy): recibe la petición HTTP completa
+    /// y devuelve una respuesta HTTP con el JSON de ChatResponse en el body.
+    /// </summary>
+    public async Task<APIGatewayHttpApiV2ProxyResponse> FunctionHandler(APIGatewayHttpApiV2ProxyRequest request, ILambdaContext context)
+    {
+        ChatResponse result;
+
+        try
+        {
+            ChatRequest? input = JsonSerializer.Deserialize<ChatRequest>(request.Body ?? string.Empty);
+            result = await ProcessQuestionAsync(input?.Question ?? string.Empty, context);
+        }
+        catch (Exception ex)
+        {
+            result = new ChatResponse { Answer = $"Petición inválida: {ex.Message}" };
+        }
+
+        return new APIGatewayHttpApiV2ProxyResponse
+        {
+            StatusCode = 200,
+            Body = JsonSerializer.Serialize(result),
+            Headers = new Dictionary<string, string>
+            {
+                ["Content-Type"] = "application/json"
+            }
+        };
+    }
+
+    private static async Task<ChatResponse> ProcessQuestionAsync(string question, ILambdaContext context)
     {
         // --- CONFIGURACIÓN DE SECRETS MANAGER ---
         string secretName = "eventos-azure-openai";
@@ -32,7 +62,7 @@ public class Function
 
         IAmazonSecretsManager client = new AmazonSecretsManagerClient(RegionEndpoint.GetBySystemName(region));
 
-        GetSecretValueRequest request = new GetSecretValueRequest
+        GetSecretValueRequest secretRequest = new GetSecretValueRequest
         {
             SecretId = secretName,
             VersionStage = "AWSCURRENT",
@@ -43,7 +73,7 @@ public class Function
 
         try
         {
-            response = await client.GetSecretValueAsync(request);
+            response = await client.GetSecretValueAsync(secretRequest);
             secretString = response.SecretString;
         }
         catch (Exception e)
@@ -70,7 +100,7 @@ public class Function
                 messages = new[]
                 {
                     new { role = "system", content = "Eres un asistente experto en festivales y conciertos de música. Responde de forma concisa basándote en la información solicitada." },
-                    new { role = "user", content = input.Question }
+                    new { role = "user", content = question }
                 }
             };
 

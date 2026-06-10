@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Amazon.Lambda.APIGatewayEvents;
 using Amazon.Lambda.TestUtilities;
 using MyExamLambdaFunction;
 
@@ -6,8 +8,15 @@ string pregunta = Console.ReadLine() ?? string.Empty;
 
 Function function = new();
 TestLambdaContext context = new();
-ChatResponse respuesta = await function.FunctionHandler(new ChatRequest { Question = pregunta }, context);
+
+APIGatewayHttpApiV2ProxyRequest request = new()
+{
+    Body = JsonSerializer.Serialize(new ChatRequest { Question = pregunta })
+};
+
+APIGatewayHttpApiV2ProxyResponse response = await function.FunctionHandler(request, context);
 
 Console.WriteLine();
-Console.WriteLine("Respuesta:");
-Console.WriteLine(respuesta.Answer);
+Console.WriteLine($"StatusCode: {response.StatusCode}");
+Console.WriteLine("Body:");
+Console.WriteLine(response.Body);
