@@ -24,6 +24,10 @@ public class ChatResponse
 public class Function
 {
     private static readonly HttpClient httpClient = new HttpClient();
+    private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     /// <summary>
     /// Punto de entrada para API Gateway (integración proxy): recibe la petición HTTP completa
@@ -35,7 +39,7 @@ public class Function
 
         try
         {
-            ChatRequest? input = JsonSerializer.Deserialize<ChatRequest>(request.Body ?? string.Empty);
+            ChatRequest? input = JsonSerializer.Deserialize<ChatRequest>(request.Body ?? string.Empty, jsonOptions);
             result = await ProcessQuestionAsync(input?.Question ?? string.Empty, context);
         }
         catch (Exception ex)
